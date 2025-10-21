@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Water Gate Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 10px; 
+            background: #f5f5f5;
+            font-size: 14px;
+        }
+        .container { max-width: 100%; margin: 0 auto; }
+        .card { 
+            background: white; 
+            border-radius: 8px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-header { 
+            background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); 
+            color: white; 
+            text-align: center;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .status-header h1 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+        }
+        
+        .water-levels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .level-box {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .level-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .level-display { 
+            font-size: 32px; 
+            font-weight: bold; 
+        }
+        .level-subtitle {
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+        
+        .status-indicators {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        .indicator { 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            font-size: 12px;
+            background: rgba(255,255,255,0.2);
+        }
+        .indicator.auto-on { 
+            background: #4caf50; 
+            animation: pulse 2s infinite;
+        }
+        .indicator.in-range { background: #2196f3; }
+        .indicator.should-open { background: #ff9800; }
+        .indicator.should-close { background: #f44336; }
+        @keyframes pulse { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.7; } 
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .info-item {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .info-item label {
+            display: block;
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-item value {
+            display: block;
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .gate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .gate-card {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .gate-card.enabled {
+            border-color: #2196f3;
+            background: #e3f2fd;
+        }
+        .gate-card.open {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+        .gate-card.closed {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+        .gate-card.moving {
+            border-color: #ff9800;
+            background: #fff3e0;
+            animation: pulse 1s infinite;
+        }
+        .gate-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        .gate-status {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        .gate-status.open { 
+            background: #4caf50; 
+            color: white; 
+        }
+        .gate-status.closed { 
+            background: #f44336; 
+            color: white; 
+        }
+        .gate-status.moving { 
+            background: #ff9800; 
+            color: white; 
+        }
+        .gate-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .gate-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .gate-btn.open { 
+            background: #4caf50; 
+            color: white; 
+        }
+        .gate-btn.close { 
+            background: #f44336; 
+            color: white; 
+        }
+        .gate-btn.stop { 
+            background: #ff9800; 
+            color: white; 
+        }
+        .gate-btn:hover { 
+            opacity: 0.8; 
+            transform: translateY(-2px);
+        }
+        .gate-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .gate-badge.enabled { 
+            background: #4caf50; 
+            color: white; 
+        }
+        .gate-badge.disabled { 
+            background: #9e9e9e; 
+            color: white; 
+        }
+        
+        .auto-control {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .auto-control h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        .auto-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .auto-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 13px;
+            transition: all 0.3s;
+        }
+        .toggle-switch.on {
+            background: #4caf50;
+        }
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .toggle-switch.on .toggle-slider {
+            left: 26px;
+        }
+        
+        .settings-section {
+            margin: 20px 0;
+        }
+        .settings-section h3 {
+            margin: 15px 0 10px 0;
+            color: #333;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 5px;
+            font-size: 16px;
+        }
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin: 12px 0;
+        }
+        .form-row label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 13px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .form-row small {
+            color: #666;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .gate-config {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f9f9f9;
+            border-radius: 5px;
+            gap: 10px;
+        }
+        .gate-config input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        .gate-config input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .gate-config label {
+            min-width: 80px;
+            font-weight: 600;
+        }
+        
+        button {
+            background: #2196F3;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.2s;
+        }
+        button:hover { 
+            background: #1976D2; 
+            transform: translateY(-2px);
+        }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        .info-box p {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 768px) {
+            .water-levels {
+                grid-template-columns: 1fr;
+            }
+            .gate-grid {
+                grid-template-columns: 1fr;
+            }
+            .info-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 5px; }
+            .card { padding: 10px; }
+            .level-display { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-header">
+            <h1>🌊 Water Gate Controller</h1>
+            <div class="water-levels">
+                <div class="level-box">
+                    <h3>Main Water Level</h3>
+                    <div class="level-display"><span id="mainLevel">--</span> cm</div>
+                    <div class="level-subtitle">Raw: <span id="mainRaw">--</span> cm</div>
+                </div>
+                <div class="level-box">
+                    <h3>Secondary Water Level</h3>
+                    <div class="level-display"><span id="secondaryLevel">--</span> cm</div>
+                    <div class="level-subtitle">Raw: <span id="secondaryRaw">--</span> cm</div>
+                </div>
+            </div>
+            <div class="status-indicators">
+                <span id="autoIndicator" class="indicator">Manual Mode</span>
+                <span id="rangeIndicator" class="indicator" style="display:none;">In Range</span>
+                <span id="actionIndicator" class="indicator" style="display:none;">--</span>
+            </div>
+        </div>
+        
+        <div class="auto-control">
+            <h2>Automatic Control</h2>
+            <div class="auto-toggle" onclick="toggleAutoMode()">
+                <span style="font-weight: bold;">AUTO MODE</span>
+                <div id="autoToggle" class="toggle-switch">
+                    <div class="toggle-slider"></div>
+                </div>
+                <span id="autoStatus">OFF</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0;">System Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Target Range</label>
+                    <value><span id="lowerTarget">--</span> to <span id="upperTarget">--</span> cm</value>
+                </div>
+                <div class="info-item">
+                    <label>Secondary Min</label>
+                    <value><span id="secondaryMin">--</span> cm</value>
+                </div>
+                <div class="info-item">
+                    <label>Operation Delay</label>
+                    <value><span id="operationDelay">--</span> sec</value>
+                </div>
+                <div class="info-item">
+                    <label>Uptime</label>
+                    <value id="uptime">--</value>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0;">Gate Status & Control</h2>
+            <div class="gate-grid" id="gateGrid">
+                <!-- Gates will be dynamically loaded here -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0;">System Settings</h2>
+            <form id="settingsForm">
+                <div class="settings-section">
+                    <h3>Basic Configuration</h3>
+                    <div class="form-row">
+                        <label>Station Name</label>
+                        <input type="text" id="stationName" name="stationName">
+                    </div>
+                    <div class="form-row">
+                        <label>Measurement Interval (seconds)</label>
+                        <input type="number" id="interval" name="interval" min="5">
+                        <small>How often to check water levels (minimum 5 seconds)</small>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>Main Sensor Configuration</h3>
+                    <div class="form-row">
+                        <label>Calibration Offset (cm)</label>
+                        <input type="number" step="0.1" id="mainCalibrationOffset" name="mainCalibrationOffset">
+                    </div>
+                    <div class="form-row">
+                        <label>Sensor to Bottom Distance (cm)</label>
+                        <input type="number" step="0.1" id="mainSensorToBottomDistance" name="mainSensorToBottomDistance">
+                    </div>
+                    <div class="form-row">
+                        <label>Upper Target Level (cm)</label>
+                        <input type="number" step="0.1" id="mainUpperTarget" name="mainUpperTarget">
+                        <small>When main level exceeds this, gates may open to drain</small>
+                    </div>
+                    <div class="form-row">
+                        <label>Lower Target Level (cm)</label>
+                        <input type="number" step="0.1" id="mainLowerTarget" name="mainLowerTarget">
+                        <small>When main level below this, gates may open to fill</small>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>Secondary Sensor Configuration</h3>
+                    <div class="form-row">
+                        <label>Calibration Offset (cm)</label>
+                        <input type="number" step="0.1" id="secondaryCalibrationOffset" name="secondaryCalibrationOffset">
+                    </div>
+                    <div class="form-row">
+                        <label>Sensor to Bottom Distance (cm)</label>
+                        <input type="number" step="0.1" id="secondarySensorToBottomDistance" name="secondarySensorToBottomDistance">
+                    </div>
+                    <div class="form-row">
+                        <label>Minimum Safe Level (cm)</label>
+                        <input type="number" step="0.1" id="secondaryMinLevel" name="secondaryMinLevel">
+                        <small>Minimum level required for gate operations</small>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>Gate Operation Settings</h3>
+                    <div class="form-row">
+                        <label>Operation Delay (seconds)</label>
+                        <input type="number" id="gateOperationDelay" name="gateOperationDelay" min="1">
+                        <small>Minimum time between gate operations</small>
+                    </div>
+                    <div class="form-row">
+                        <label>Auto Mode</label>
+                        <select id="autoModeEnabled" name="autoModeEnabled">
+                            <option value="0">Disabled</option>
+                            <option value="1">Enabled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit">Save Settings</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top: 0;">Gate Configuration</h2>
+            <div class="info-box">
+                <h4>Control Logic</h4>
+                <p><strong>Gates Open:</strong> When main level is outside target range AND secondary can supply/receive water</p>
+                <p><strong>Gates Close:</strong> When main level is within target range OR secondary cannot supply/receive</p>
+                <p><strong>Manual Control:</strong> Individual gates can be controlled manually at any time</p>
+            </div>
+            <form id="gateConfigForm">
+                <div id="gateConfigs"></div>
+                <button type="submit">Save Gate Settings</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <button id="restartBtn" class="danger">Restart System</button>
+        </div>
+    </div>
+
+    <script>
+        let autoModeState = false;
+
+        function updateStatus() {
+            fetch('/currentLevel')
+                .then(response => response.json())
+                .then(data => {
+                    // Update water levels
+                    document.getElementById('mainLevel').textContent = data.mainWaterLevel.toFixed(2);
+                    document.getElementById('mainRaw').textContent = data.mainRawDistance.toFixed(2);
+                    document.getElementById('secondaryLevel').textContent = data.secondaryWaterLevel.toFixed(2);
+                    document.getElementById('secondaryRaw').textContent = data.secondaryRawDistance.toFixed(2);
+                    
+                    // Update auto mode indicator
+                    autoModeState = data.autoMode && !data.manualControl;
+                    const autoIndicator = document.getElementById('autoIndicator');
+                    const autoToggle = document.getElementById('autoToggle');
+                    const autoStatus = document.getElementById('autoStatus');
+                    
+                    if (autoModeState) {
+                        autoIndicator.textContent = 'Auto Mode Active';
+                        autoIndicator.className = 'indicator auto-on';
+                        autoToggle.className = 'toggle-switch on';
+                        autoStatus.textContent = 'ON';
+                    } else {
+                        autoIndicator.textContent = 'Manual Mode';
+                        autoIndicator.className = 'indicator';
+                        autoToggle.className = 'toggle-switch';
+                        autoStatus.textContent = 'OFF';
+                    }
+                    
+                    // Update status indicators
+                    const rangeIndicator = document.getElementById('rangeIndicator');
+                    const actionIndicator = document.getElementById('actionIndicator');
+                    
+                    if (data.mainInTargetRange) {
+                        rangeIndicator.style.display = 'inline-block';
+                        rangeIndicator.textContent = 'In Target Range';
+                        rangeIndicator.className = 'indicator in-range';
+                    } else {
+                        rangeIndicator.style.display = 'none';
+                    }
+                    
+                    if (data.shouldOpen) {
+                        actionIndicator.style.display = 'inline-block';
+                        actionIndicator.textContent = 'Should Open';
+                        actionIndicator.className = 'indicator should-open';
+                    } else if (data.shouldClose) {
+                        actionIndicator.style.display = 'inline-block';
+                        actionIndicator.textContent = 'Should Close';
+                        actionIndicator.className = 'indicator should-close';
+                    } else {
+                        actionIndicator.style.display = 'none';
+                    }
+                    
+                    // Update gate grid
+                    const gateGrid = document.getElementById('gateGrid');
+                    gateGrid.innerHTML = '';
+                    
+                    data.gates.forEach(gate => {
+                        const gateCard = document.createElement('div');
+                        let cardClass = 'gate-card';
+                        if (gate.enabled) cardClass += ' enabled';
+                        if (gate.isMoving) cardClass += ' moving';
+                        else if (gate.isOpen) cardClass += ' open';
+                        else cardClass += ' closed';
+                        
+                        let statusClass = 'gate-status ';
+                        let statusText = '';
+                        if (gate.isMoving) {
+                            statusClass += 'moving';
+                            statusText = 'MOVING';
+                        } else if (gate.isOpen) {
+                            statusClass += 'open';
+                            statusText = 'OPEN';
+                        } else {
+                            statusClass += 'closed';
+                            statusText = 'CLOSED';
+                        }
+                        
+                        const badgeClass = gate.enabled ? 'gate-badge enabled' : 'gate-badge disabled';
+                        const badgeText = gate.enabled ? 'AUTO ENABLED' : 'MANUAL ONLY';
+                        
+                        gateCard.className = cardClass;
+                        gateCard.innerHTML = `
+                            <h3>${gate.name}</h3>
+                            <span class="${badgeClass}">${badgeText}</span>
+                            <div class="${statusClass}">${statusText}</div>
+                            <div class="gate-controls">
+                                <button class="gate-btn open" onclick="controlGate(${gate.index}, 'open')">OPEN</button>
+                                <button class="gate-btn stop" onclick="controlGate(${gate.index}, 'stop')">STOP</button>
+                                <button class="gate-btn close" onclick="controlGate(${gate.index}, 'close')">CLOSE</button>
+                            </div>
+                        `;
+                        gateGrid.appendChild(gateCard);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+                
+            fetch('/uptime')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('uptime').textContent = data;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function loadConfig() {
+            fetch('/config')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('stationName').value = data.stationName;
+                    document.getElementById('interval').value = data.measurementInterval;
+                    document.getElementById('mainCalibrationOffset').value = data.mainCalibrationOffset;
+                    document.getElementById('mainSensorToBottomDistance').value = data.mainSensorToBottomDistance;
+                    document.getElementById('mainUpperTarget').value = data.mainUpperTarget;
+                    document.getElementById('mainLowerTarget').value = data.mainLowerTarget;
+                    document.getElementById('secondaryCalibrationOffset').value = data.secondaryCalibrationOffset;
+                    document.getElementById('secondarySensorToBottomDistance').value = data.secondarySensorToBottomDistance;
+                    document.getElementById('secondaryMinLevel').value = data.secondaryMinLevel;
+                    document.getElementById('gateOperationDelay').value = data.gateOperationDelay;
+                    document.getElementById('autoModeEnabled').value = data.autoModeEnabled ? "1" : "0";
+                    
+                    // Update info display
+                    document.getElementById('lowerTarget').textContent = data.mainLowerTarget.toFixed(1);
+                    document.getElementById('upperTarget').textContent = data.mainUpperTarget.toFixed(1);
+                    document.getElementById('secondaryMin').textContent = data.secondaryMinLevel.toFixed(1);
+                    document.getElementById('operationDelay').textContent = data.gateOperationDelay;
+                    
+                    // Load gate configs
+                    const gateConfigs = document.getElementById('gateConfigs');
+                    gateConfigs.innerHTML = '';
+                    
+                    data.gates.forEach(gate => {
+                        const div = document.createElement('div');
+                        div.className = 'gate-config';
+                        div.innerHTML = `
+                            <label>Gate ${gate.index + 1}:</label>
+                            <input type="checkbox" name="gate${gate.index}_enabled" value="1" ${gate.enabled ? 'checked' : ''}>
+                            <input type="text" name="gate${gate.index}_name" value="${gate.name}" placeholder="Gate Name">
+                        `;
+                        gateConfigs.appendChild(div);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function controlGate(gateIndex, action) {
+            const formData = new FormData();
+            formData.append('gate', gateIndex);
+            formData.append('action', action);
+            
+            fetch('/gateControl', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log('Gate control:', data);
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function toggleAutoMode() {
+            const newState = !autoModeState;
+            const formData = new FormData();
+            formData.append('action', 'auto');
+            formData.append('state', newState ? '1' : '0');
+            
+            fetch('/gateControl', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log('Auto mode:', data);
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function restartSystem() {
+            if (confirm('Are you sure you want to restart the system?')) {
+                fetch('/restart', { method: 'POST' })
+                .then(() => {
+                    alert('System restarting...');
+                    setTimeout(() => location.reload(), 5000);
+                });
+            }
+        }
+
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/settings', { method: 'POST', body: formData })
+            .then(response => response.text())
+            .then(data => {
+                alert('Settings saved: ' + data);
+                loadConfig();
+            })
+            .catch(error => {
+                alert('Error saving settings');
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById('gateConfigForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/settings', { method: 'POST', body: formData })
+            .then(response => response.text())
+            .then(data => {
+                alert('Gate settings saved: ' + data);
+                loadConfig();
+            })
+            .catch(error => {
+                alert('Error saving gate settings');
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', restartSystem);
+
+        // Initialize
+        loadConfig();
+        updateStatus();
+        setInterval(updateStatus, 3000); // Update every 3 seconds
+    </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "stationName": "Water Gate Controller",
+  "measurementInterval": 30000,
+  "mainCalibrationOffset": 0.0,
+  "mainSensorToBottomDistance": 300.0,
+  "mainUpperTarget": -40.0,
+  "mainLowerTarget": -60.0,
+  "secondaryCalibrationOffset": 0.0,
+  "secondarySensorToBottomDistance": 300.0,
+  "secondaryMinLevel": -80.0,
+  "gateOperationDelay": 60,
+  "autoModeEnabled": false,
+  "gates": [
+    {
+      "index": 0,
+      "name": "Gate 1",
+      "enabled": true
+    },
+    {
+      "index": 1,
+      "name": "Gate 2",
+      "enabled": false
+    },
+    {
+      "index": 2,
+      "name": "Gate 3",
+      "enabled": false
+    },
+    {
+      "index": 3,
+      "name": "Gate 4",
+      "enabled": false
+    }
+  ]
+}

@@ -678,17 +678,19 @@ float readA01NYUB(HardwareSerial &serial, int rx, int tx, const char* sensorName
 
 bool shouldOpenGates()
 {
-    bool mainTooHigh = mainWaterLevel > config.mainUpperTarget && secondaryWaterLevel < mainWaterLevel;
-    bool mainTooLow = mainWaterLevel < config.mainLowerTarget && secondaryWaterLevel > mainWaterLevel;
+    bool mainTooHigh = (mainWaterLevel > config.mainUpperTarget) && (secondaryWaterLevel < mainWaterLevel);
+    bool mainTooLow = (mainWaterLevel < config.mainLowerTarget) && (secondaryWaterLevel > mainWaterLevel);
 
-    return mainTooHigh || (mainTooLow);
+    return mainTooHigh || mainTooLow;
 }
 
 bool shouldCloseGates()
 {
-    bool mainInRange = mainWaterLevel > config.mainLowerTarget && mainWaterLevel < config.mainUpperTarget;
+    bool mainInRange = (mainWaterLevel > config.mainLowerTarget) && (mainWaterLevel < config.mainUpperTarget);
+    bool mainTooHighButSecondaryHigher = (mainWaterLevel > config.mainUpperTarget) && (secondaryWaterLevel > mainWaterLevel);
+    bool mainTooLowButSecondaryLower = (mainWaterLevel < config.mainLowerTarget) && (secondaryWaterLevel < mainWaterLevel);
     
-    return mainInRange;
+    return mainInRange || mainTooHighButSecondaryHigher || mainTooLowButSecondaryLower;
 }
 
 void controlAutoGates()

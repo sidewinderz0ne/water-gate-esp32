@@ -88,7 +88,7 @@ struct Config {
     bool autoModeEnabled;
     
     Config() : stationName("Water Gate Controller"),
-               measurementInterval(30000),
+               measurementInterval(30),
                mainCalibrationOffset(0.0),
                mainSensorToBottomDistance(300.0),
                mainUpperTarget(-40.0),
@@ -100,7 +100,7 @@ struct Config {
 } config;
 
 unsigned long startTime = 0;
-const unsigned long MINIMUM_INTERVAL = 5000;
+const unsigned long MINIMUM_INTERVAL_SECONDS  = 5;
 
 // Function declarations
 bool setupLittleFS();
@@ -131,6 +131,8 @@ void stopGate(int gateIndex);
 bool shouldOpenGates();
 bool shouldCloseGates();
 void initializeGates();
+template<typename T>
+bool getIfPresent(JsonObject obj, const char* key, T& out);
 
 void initializeGates()
 {
@@ -159,7 +161,7 @@ void createDefaultConfig() {
     JsonDocument doc;
     
     doc["stationName"] = "Water Gate Controller";
-    doc["measurementInterval"] = 30000;
+    doc["measurementInterval"] = 30;
     doc["mainCalibrationOffset"] = 0.0;
     doc["mainSensorToBottomDistance"] = 300.0;
     doc["mainUpperTarget"] = -40.0;
@@ -171,7 +173,7 @@ void createDefaultConfig() {
     
     JsonArray gatesArray = doc["gates"].to<JsonArray>();
     for (int i = 0; i < NUM_GATES; i++) {
-        JsonObject gate = gatesArray.createNestedObject();
+        JsonObject gate = gatesArray.add<JsonObject>();
         gate["index"] = i;
         gate["name"] = "Gate " + String(i + 1);
         gate["enabled"] = (i == 0); // Only Gate 1 enabled by default
@@ -286,7 +288,7 @@ void handleGetConfig()
     JsonArray gatesArray = doc["gates"].to<JsonArray>();
     for (int i = 0; i < NUM_GATES; i++)
     {
-        JsonObject gate = gatesArray.createNestedObject();
+        JsonObject gate = gatesArray.add<JsonObject>();
         gate["index"] = i;
         gate["name"] = gates[i].name;
         gate["enabled"] = gates[i].enabled;
@@ -297,53 +299,134 @@ void handleGetConfig()
     server.send(200, "application/json", jsonString);
 }
 
-void handleSettings()
-{
-    if (server.hasArg("plain"))
-    {
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, server.arg("plain"));
+void handleSettings() {
+  // 1) Use JsonDocument with automatic memory management
+  JsonDocument doc;
+  bool parsed = false;
 
-        if (!error)
-        {
-            config.stationName = doc["stationName"].as<String>();
-            config.measurementInterval = doc["measurementInterval"].as<unsigned long>();
-            config.mainCalibrationOffset = doc["mainCalibrationOffset"].as<float>();
-            config.mainSensorToBottomDistance = doc["mainSensorToBottomDistance"].as<float>();
-            config.mainUpperTarget = doc["mainUpperTarget"].as<float>();
-            config.mainLowerTarget = doc["mainLowerTarget"].as<float>();
-            config.secondaryCalibrationOffset = doc["secondaryCalibrationOffset"].as<float>();
-            config.secondarySensorToBottomDistance = doc["secondarySensorToBottomDistance"].as<float>();
-            config.gateOperationDelay = doc["gateOperationDelay"].as<unsigned int>();
-            config.autoModeEnabled = doc["autoModeEnabled"].as<bool>();
-            
-            autoMode = config.autoModeEnabled;
-
-            JsonArray gatesArray = doc["gates"];
-            for (int i = 0; i < NUM_GATES && i < gatesArray.size(); i++)
-            {
-                JsonObject gate = gatesArray[i];
-                gates[i].enabled = gate["enabled"].as<bool>();
-                gates[i].name = gate["name"].as<String>();
-            }
-
-            validateMeasurementInterval();
-
-            if (saveConfig())
-            {
-                addToSerialBuffer("Config saved");
-                server.send(200, "text/plain", "OK");
-            }
-            else
-            {
-                server.send(500, "text/plain", "Save failed");
-            }
-        }
-        else
-        {
-            server.send(400, "text/plain", "Invalid JSON");
-        }
+  // --- helpers ---
+  auto parseBool = [&](JsonObject o, const char* key, bool& out) {
+    if (o[key].isNull()) return false;
+    if (o[key].is<bool>()) { out = o[key].as<bool>(); return true; }
+    if (o[key].is<const char*>()) {
+      String s = String(o[key].as<const char*>());
+      s.toLowerCase();
+      if (s == "1" || s == "true"  || s == "on"  || s == "yes")  { out = true;  return true; }
+      if (s == "0" || s == "false" || s == "off" || s == "no")   { out = false; return true; }
     }
+    // numeric string fallback
+    if (o[key].is<long>() || o[key].is<int>()) { out = o[key].as<long>() != 0; return true; }
+    return false;
+  };
+  auto parseULong = [&](JsonObject o, const char* key, unsigned long& out) {
+    if (o[key].isNull()) return false;
+    if (o[key].is<unsigned long>()) { out = o[key].as<unsigned long>(); return true; }
+    if (o[key].is<long>())          { long v = o[key].as<long>(); out = v < 0 ? 0UL : (unsigned long)v; return true; }
+    if (o[key].is<const char*>())   { out = strtoul(o[key].as<const char*>(), nullptr, 10); return true; }
+    return false;
+  };
+  auto parseUInt = [&](JsonObject o, const char* key, unsigned int& out) {
+    if (o[key].isNull()) return false;
+    if (o[key].is<unsigned int>()) { out = o[key].as<unsigned int>(); return true; }
+    if (o[key].is<int>())          { int v = o[key].as<int>(); out = v < 0 ? 0U : (unsigned int)v; return true; }
+    if (o[key].is<const char*>())  { out = (unsigned int)strtoul(o[key].as<const char*>(), nullptr, 10); return true; }
+    return false;
+  };
+  auto parseFloatIf = [&](JsonObject o, const char* key, float& out) {
+    if (o[key].isNull()) return false;
+    if (o[key].is<float>() || o[key].is<double>()) { out = o[key].as<float>(); return true; }
+    if (o[key].is<const char*>()) { out = atof(o[key].as<const char*>()); return true; }
+    if (o[key].is<long>() || o[key].is<int>()) { out = (float)o[key].as<long>(); return true; }
+    return false;
+  };
+  auto parseStringIf = [&](JsonObject o, const char* key, String& out) {
+    if (o[key].isNull()) return false;
+    if (o[key].is<const char*>()) { out = o[key].as<const char*>(); return true; }
+    return false;
+  };
+
+  // 2) Try JSON body first (ensure non-empty)
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    if (body.length() > 0) {
+      DeserializationError err = deserializeJson(doc, body);
+      if (!err) parsed = true;
+      else {
+        // helpful error back to client
+        String msg = "Invalid JSON: ";
+        msg += err.c_str();
+        server.send(400, "text/plain", msg);
+        return;
+      }
+    }
+  }
+
+  // 3) If not JSON, try to build from form fields (works for x-www-form-urlencoded; multipart needs upload handler)
+  if (!parsed) {
+    JsonObject o = doc.to<JsonObject>();
+    auto put = [&](const char* k){ if (server.hasArg(k)) o[k] = server.arg(k); };
+    put("stationName"); put("measurementInterval");
+    put("mainCalibrationOffset"); put("mainSensorToBottomDistance");
+    put("mainUpperTarget"); put("mainLowerTarget");
+    put("secondaryCalibrationOffset"); put("secondarySensorToBottomDistance");
+    put("gateOperationDelay"); put("autoModeEnabled");
+    parsed = (o.size() > 0);
+    if (!parsed) {
+      server.send(400, "text/plain", "No settings in request (empty body).");
+      return;
+    }
+  }
+
+  JsonObject o = doc.as<JsonObject>();
+
+  // 4) Update only provided fields (measurementInterval is in SECONDS)
+  parseStringIf(o, "stationName", config.stationName);
+
+  unsigned long tmpUL;
+  if (parseULong(o, "measurementInterval", tmpUL)) config.measurementInterval = tmpUL;
+
+  parseFloatIf(o, "mainCalibrationOffset", config.mainCalibrationOffset);
+  parseFloatIf(o, "mainSensorToBottomDistance", config.mainSensorToBottomDistance);
+  parseFloatIf(o, "mainUpperTarget", config.mainUpperTarget);
+  parseFloatIf(o, "mainLowerTarget", config.mainLowerTarget);
+
+  parseFloatIf(o, "secondaryCalibrationOffset", config.secondaryCalibrationOffset);
+  parseFloatIf(o, "secondarySensorToBottomDistance", config.secondarySensorToBottomDistance);
+
+  unsigned int tmpUI;
+  if (parseUInt(o, "gateOperationDelay", tmpUI)) config.gateOperationDelay = tmpUI;
+
+  bool tmpB;
+  if (parseBool(o, "autoModeEnabled", tmpB)) { config.autoModeEnabled = tmpB; autoMode = tmpB; }
+
+  // Gates (if present)
+  if (!o["gates"].isNull() && o["gates"].is<JsonArray>()) {
+    JsonArray gatesArray = o["gates"];
+    for (int i = 0; i < NUM_GATES && i < (int)gatesArray.size(); i++) {
+      JsonObject g = gatesArray[i];
+      if (g.isNull()) continue;
+      parseBool(g, "enabled", gates[i].enabled);
+      parseStringIf(g, "name", gates[i].name);
+    }
+  }
+
+  // 5) Validate interval (seconds)
+  if (config.measurementInterval < 5UL) config.measurementInterval = 5UL;
+
+  // 6) Save and report detailed errors
+  if (saveConfig()) {
+    server.send(200, "text/plain", "OK");
+  } else {
+    // Expand the message to help you debug FS issues on the client quickly
+    server.send(500, "text/plain", "Save failed: LittleFS open/write error (check free space and that LittleFS.begin() succeeded).");
+  }
+}
+
+
+template<typename T>
+bool getIfPresent(JsonObject obj, const char* key, T& out) {
+    if (obj[key].is<T>()) { out = obj[key].as<T>(); return true; }
+    return false;
 }
 
 void handleCurrentLevel()
@@ -355,11 +438,15 @@ void handleCurrentLevel()
     doc["mainRawDistance"] = mainRawDistance;
     doc["secondaryRawDistance"] = secondaryRawDistance;
     doc["autoMode"] = autoMode;
+
+    doc["mainInTargetRange"] = (mainWaterLevel > config.mainLowerTarget && mainWaterLevel < config.mainUpperTarget);
+    doc["shouldOpen"] = shouldOpenGates();
+    doc["shouldClose"] = shouldCloseGates();
     
     JsonArray gatesArray = doc["gates"].to<JsonArray>();
     for (int i = 0; i < NUM_GATES; i++)
     {
-        JsonObject gate = gatesArray.createNestedObject();
+        JsonObject gate = gatesArray.add<JsonObject>();
         gate["index"] = i;
         gate["name"] = gates[i].name;
         gate["enabled"] = gates[i].enabled;
@@ -426,24 +513,21 @@ void handleGateControl()
     }
 }
 
-void loop()
-{
+void loop() {
     resetWatchdog();
     server.handleClient();
 
     unsigned long currentTime = millis();
 
-    if (currentTime - lastMeasurementTime >= config.measurementInterval)
-    {
+    // multiply by 1000 to use seconds internally
+    if (currentTime - lastMeasurementTime >= (config.measurementInterval * 1000UL)) {
         measureWaterLevels();
         lastMeasurementTime = currentTime;
     }
 
-    if (autoMode)
-    {
+    if (autoMode) {
         controlAutoGates();
     }
-
     delay(100);
 }
 
@@ -617,22 +701,23 @@ void stopGate(int gateIndex)
     addToSerialBuffer(gates[gateIndex].name + " STOPPED");
 }
 
-bool loadConfig()
-{
-    if (!LittleFS.exists(CONFIG_FILE))
-        return false;
-
+bool loadConfig() {
+    if (!LittleFS.exists(CONFIG_FILE)) return false;
     File file = LittleFS.open(CONFIG_FILE, "r");
     if (!file) return false;
 
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, file);
     file.close();
-
     if (error) return false;
 
     config.stationName = doc["stationName"].as<String>();
-    config.measurementInterval = doc["measurementInterval"].as<unsigned long>();
+
+    // migration: treat >=1000 as milliseconds from old config and convert to seconds
+    unsigned long mi = doc["measurementInterval"] | 30UL;
+    if (mi >= 1000UL) mi = mi / 1000UL;
+    config.measurementInterval = mi;
+
     config.mainCalibrationOffset = doc["mainCalibrationOffset"].as<float>();
     config.mainSensorToBottomDistance = doc["mainSensorToBottomDistance"].as<float>();
     config.mainUpperTarget = doc["mainUpperTarget"].as<float>();
@@ -641,17 +726,14 @@ bool loadConfig()
     config.secondarySensorToBottomDistance = doc["secondarySensorToBottomDistance"].as<float>();
     config.gateOperationDelay = doc["gateOperationDelay"].as<unsigned int>();
     config.autoModeEnabled = doc["autoModeEnabled"].as<bool>();
-    
     autoMode = config.autoModeEnabled;
 
     JsonArray gatesArray = doc["gates"];
-    for (int i = 0; i < NUM_GATES && i < gatesArray.size(); i++)
-    {
+    for (int i = 0; i < NUM_GATES && i < gatesArray.size(); i++) {
         JsonObject gate = gatesArray[i];
         gates[i].enabled = gate["enabled"].as<bool>();
         gates[i].name = gate["name"].as<String>();
     }
-
     return true;
 }
 
@@ -676,18 +758,13 @@ bool saveConfig()
     JsonArray gatesArray = doc["gates"].to<JsonArray>();
     for (int i = 0; i < NUM_GATES; i++)
     {
-        JsonObject gate = gatesArray.createNestedObject();
+        JsonObject gate = gatesArray.add<JsonObject>();
         gate["index"] = i;
         gate["name"] = gates[i].name;
         gate["enabled"] = gates[i].enabled;
     }
-    
-    if (serializeJson(doc, file) == 0)
-    {
-        file.close();
-        return false;
-    }
 
+    if (serializeJson(doc, file) == 0) { file.close(); return false; }
     file.close();
     return true;
 }
@@ -740,11 +817,9 @@ void handleUptime()
     server.send(200, "text/plain", uptimeStr);
 }
 
-void validateMeasurementInterval()
-{
-    if (config.measurementInterval < MINIMUM_INTERVAL)
-    {
-        config.measurementInterval = MINIMUM_INTERVAL;
+void validateMeasurementInterval() {
+    if (config.measurementInterval < MINIMUM_INTERVAL_SECONDS) {
+        config.measurementInterval = MINIMUM_INTERVAL_SECONDS;
         saveConfig();
     }
 }

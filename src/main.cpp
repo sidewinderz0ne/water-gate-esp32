@@ -100,7 +100,7 @@ struct Config {
 } config;
 
 unsigned long startTime = 0;
-const unsigned long MINIMUM_INTERVAL_SECONDS  = 5;
+const unsigned long MINIMUM_INTERVAL_SECONDS  = 1;
 
 // Function declarations
 bool setupLittleFS();
@@ -263,6 +263,7 @@ void setupWebServer()
     server.on("/settings", HTTP_POST, handleSettings);
     server.on("/current", handleCurrentLevel);
     server.on("/gate", HTTP_POST, handleGateControl);
+    server.on("/gateControl", HTTP_POST, handleGateControl);
     server.on("/restart", handleRestart);
     server.on("/uptime", handleUptime);
 
@@ -411,7 +412,7 @@ void handleSettings() {
   }
 
   // 5) Validate interval (seconds)
-  if (config.measurementInterval < 5UL) config.measurementInterval = 5UL;
+  if (config.measurementInterval < 1UL) config.measurementInterval = 1UL;
 
   // 6) Save and report detailed errors
   if (saveConfig()) {
@@ -469,6 +470,63 @@ void handleCurrentLevel()
 
 void handleGateControl()
 {
+    // Handle form data (for auto mode toggle)
+    if (server.hasArg("action"))
+    {
+        String action = server.arg("action");
+        
+        if (action == "auto")
+        {
+            if (server.hasArg("state"))
+            {
+                String state = server.arg("state");
+                autoMode = (state == "1" || state == "true");
+                config.autoModeEnabled = autoMode;
+                saveConfig();
+                
+                addToSerialBuffer("Auto mode " + String(autoMode ? "ENABLED" : "DISABLED"));
+                server.send(200, "text/plain", autoMode ? "Auto mode ON" : "Auto mode OFF");
+                return;
+            }
+            else
+            {
+                server.send(400, "text/plain", "Missing state parameter");
+                return;
+            }
+        }
+        
+        // Handle gate control with form data
+        if (server.hasArg("gate"))
+        {
+            int gateIndex = server.arg("gate").toInt();
+            
+            if (gateIndex >= 0 && gateIndex < NUM_GATES)
+            {
+                if (action == "open")
+                {
+                    openGate(gateIndex);
+                    server.send(200, "text/plain", "Gate opening");
+                    return;
+                }
+                else if (action == "close")
+                {
+                    closeGate(gateIndex);
+                    server.send(200, "text/plain", "Gate closing");
+                    return;
+                }
+                else if (action == "stop")
+                {
+                    stopGate(gateIndex);
+                    server.send(200, "text/plain", "Gate stopped");
+                    return;
+                }
+            }
+            server.send(400, "text/plain", "Invalid gate index");
+            return;
+        }
+    }
+    
+    // Handle JSON data (for backwards compatibility)
     if (server.hasArg("plain"))
     {
         JsonDocument doc;
@@ -510,6 +568,10 @@ void handleGateControl()
         {
             server.send(400, "text/plain", "Invalid JSON");
         }
+    }
+    else
+    {
+        server.send(400, "text/plain", "Missing action or gate parameter");
     }
 }
 
@@ -649,6 +711,7 @@ void controlAutoGates()
         }
         lastAutoActionTime = currentTime;
     }
+    // else 
     else if (shouldCloseGates())
     {
         for (int i = 0; i < NUM_GATES; i++)

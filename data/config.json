@@ -1,6 +1,6 @@
 {
   "stationName": "Water Gate Controller",
-  "measurementInterval": 30000,
+  "measurementInterval": 30,
   "mainCalibrationOffset": 0.0,
   "mainSensorToBottomDistance": 300.0,
   "mainUpperTarget": -40.0,

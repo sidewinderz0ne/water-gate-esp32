@@ -611,7 +611,7 @@ float readA01NYUB(HardwareSerial &serial, int rx, int tx, const char* sensorName
     for (int i = 0; i < validMeasurements; i++)
         sum += measurements[i];
     
-    return sum / validMeasurements;
+    return sum / validMeasurements/10;
 }
 
 bool shouldOpenGates()

@@ -423,10 +423,6 @@
                     <value id="upperTarget">-40.0 cm</value>
                 </div>
                 <div class="info-item">
-                    <label>Secondary Min</label>
-                    <value id="secondaryMin">-80.0 cm</value>
-                </div>
-                <div class="info-item">
                     <label>Operation Delay</label>
                     <value id="operationDelay">60 s</value>
                 </div>
@@ -503,10 +499,6 @@
                             <label>Sensor to Bottom Distance (cm)</label>
                             <input type="number" step="0.1" id="secondarySensorToBottomDistance" name="secondarySensorToBottomDistance" required>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Minimum Water Level (cm)</label>
-                        <input type="number" step="0.1" id="secondaryMinLevel" name="secondaryMinLevel" required>
                     </div>
                     
                     <h3 style="margin-top: 30px; color: #00b4d8;">Gate Operation</h3>
@@ -669,14 +661,12 @@
                     document.getElementById('mainLowerTarget').value = data.mainLowerTarget;
                     document.getElementById('secondaryCalibrationOffset').value = data.secondaryCalibrationOffset;
                     document.getElementById('secondarySensorToBottomDistance').value = data.secondarySensorToBottomDistance;
-                    document.getElementById('secondaryMinLevel').value = data.secondaryMinLevel;
                     document.getElementById('gateOperationDelay').value = data.gateOperationDelay;
                     document.getElementById('autoModeEnabled').value = data.autoModeEnabled ? "1" : "0";
                     
                     // Update info display
                     document.getElementById('lowerTarget').textContent = data.mainLowerTarget.toFixed(1);
                     document.getElementById('upperTarget').textContent = data.mainUpperTarget.toFixed(1);
-                    document.getElementById('secondaryMin').textContent = data.secondaryMinLevel.toFixed(1);
                     document.getElementById('operationDelay').textContent = data.gateOperationDelay;
                     
                     // Load gate configs

@@ -82,7 +82,6 @@ struct Config {
     // Secondary sensor configuration
     float secondaryCalibrationOffset;
     float secondarySensorToBottomDistance;
-    float secondaryMinLevel;
     
     // Gate operation settings
     unsigned int gateOperationDelay;
@@ -96,7 +95,6 @@ struct Config {
                mainLowerTarget(-60.0),
                secondaryCalibrationOffset(0.0),
                secondarySensorToBottomDistance(300.0),
-               secondaryMinLevel(-80.0),
                gateOperationDelay(60),
                autoModeEnabled(false) {}
 } config;
@@ -168,7 +166,6 @@ void createDefaultConfig() {
     doc["mainLowerTarget"] = -60.0;
     doc["secondaryCalibrationOffset"] = 0.0;
     doc["secondarySensorToBottomDistance"] = 300.0;
-    doc["secondaryMinLevel"] = -80.0;
     doc["gateOperationDelay"] = 60;
     doc["autoModeEnabled"] = false;
     
@@ -283,7 +280,6 @@ void handleGetConfig()
     doc["mainLowerTarget"] = config.mainLowerTarget;
     doc["secondaryCalibrationOffset"] = config.secondaryCalibrationOffset;
     doc["secondarySensorToBottomDistance"] = config.secondarySensorToBottomDistance;
-    doc["secondaryMinLevel"] = config.secondaryMinLevel;
     doc["gateOperationDelay"] = config.gateOperationDelay;
     doc["autoModeEnabled"] = config.autoModeEnabled;
     
@@ -318,7 +314,6 @@ void handleSettings()
             config.mainLowerTarget = doc["mainLowerTarget"].as<float>();
             config.secondaryCalibrationOffset = doc["secondaryCalibrationOffset"].as<float>();
             config.secondarySensorToBottomDistance = doc["secondarySensorToBottomDistance"].as<float>();
-            config.secondaryMinLevel = doc["secondaryMinLevel"].as<float>();
             config.gateOperationDelay = doc["gateOperationDelay"].as<unsigned int>();
             config.autoModeEnabled = doc["autoModeEnabled"].as<bool>();
             
@@ -537,25 +532,17 @@ float readA01NYUB(HardwareSerial &serial, int rx, int tx, const char* sensorName
 
 bool shouldOpenGates()
 {
-    bool mainTooHigh = mainWaterLevel > config.mainUpperTarget;
-    bool secondaryHasCapacity = secondaryWaterLevel > config.secondaryMinLevel;
-    bool mainTooLow = mainWaterLevel < config.mainLowerTarget;
-    bool secondaryHasWater = secondaryWaterLevel > mainWaterLevel;
-    
-    return (mainTooHigh && secondaryHasCapacity) || (mainTooLow && secondaryHasWater);
+    bool mainTooHigh = mainWaterLevel > config.mainUpperTarget && secondaryWaterLevel < mainWaterLevel;
+    bool mainTooLow = mainWaterLevel < config.mainLowerTarget && secondaryWaterLevel > mainWaterLevel;
+
+    return mainTooHigh || (mainTooLow);
 }
 
 bool shouldCloseGates()
 {
-    bool mainInRange = (mainWaterLevel >= config.mainLowerTarget && 
-                        mainWaterLevel <= config.mainUpperTarget);
-    bool mainTooHigh = mainWaterLevel > config.mainUpperTarget;
-    bool secondaryNoCapacity = secondaryWaterLevel <= config.secondaryMinLevel;
-    bool mainTooLow = mainWaterLevel < config.mainLowerTarget;
-    bool secondaryNoWater = secondaryWaterLevel <= mainWaterLevel;
+    bool mainInRange = mainWaterLevel > config.mainLowerTarget && mainWaterLevel < config.mainUpperTarget;
     
-    return mainInRange || (mainTooHigh && secondaryNoCapacity) || 
-           (mainTooLow && secondaryNoWater);
+    return mainInRange;
 }
 
 void controlAutoGates()
@@ -652,7 +639,6 @@ bool loadConfig()
     config.mainLowerTarget = doc["mainLowerTarget"].as<float>();
     config.secondaryCalibrationOffset = doc["secondaryCalibrationOffset"].as<float>();
     config.secondarySensorToBottomDistance = doc["secondarySensorToBottomDistance"].as<float>();
-    config.secondaryMinLevel = doc["secondaryMinLevel"].as<float>();
     config.gateOperationDelay = doc["gateOperationDelay"].as<unsigned int>();
     config.autoModeEnabled = doc["autoModeEnabled"].as<bool>();
     
@@ -684,7 +670,6 @@ bool saveConfig()
     doc["mainLowerTarget"] = config.mainLowerTarget;
     doc["secondaryCalibrationOffset"] = config.secondaryCalibrationOffset;
     doc["secondarySensorToBottomDistance"] = config.secondarySensorToBottomDistance;
-    doc["secondaryMinLevel"] = config.secondaryMinLevel;
     doc["gateOperationDelay"] = config.gateOperationDelay;
     doc["autoModeEnabled"] = config.autoModeEnabled;
     

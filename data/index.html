@@ -214,351 +214,368 @@
             color: white; 
         }
         
-        .auto-control {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 15px 0;
-        }
-        .auto-control h2 {
+        .card h2 {
             margin: 0 0 15px 0;
+            color: #333;
             font-size: 18px;
-        }
-        .auto-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 24px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .auto-toggle:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        .toggle-switch {
-            position: relative;
-            width: 50px;
-            height: 26px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 13px;
-            transition: all 0.3s;
-        }
-        .toggle-switch.on {
-            background: #4caf50;
-        }
-        .toggle-slider {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 22px;
-            height: 22px;
-            background: white;
-            border-radius: 50%;
-            transition: all 0.3s;
-        }
-        .toggle-switch.on .toggle-slider {
-            left: 26px;
+            border-bottom: 2px solid #00b4d8;
+            padding-bottom: 8px;
         }
         
-        .settings-section {
-            margin: 20px 0;
+        .form-group {
+            margin: 15px 0;
         }
-        .settings-section h3 {
-            margin: 15px 0 10px 0;
-            color: #333;
-            border-bottom: 2px solid #2196F3;
-            padding-bottom: 5px;
-            font-size: 16px;
-        }
-        .form-row {
-            display: flex;
-            flex-direction: column;
-            margin: 12px 0;
-        }
-        .form-row label {
-            font-weight: 600;
+        .form-group label {
+            display: block;
+            font-weight: bold;
             margin-bottom: 5px;
             color: #555;
             font-size: 13px;
         }
-        .form-row input, .form-row select {
+        .form-group input, 
+        .form-group select {
+            width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 2px solid #e0e0e0;
             border-radius: 5px;
             font-size: 14px;
+            transition: border-color 0.3s;
         }
-        .form-row small {
-            color: #666;
-            font-size: 11px;
-            margin-top: 5px;
+        .form-group input:focus, 
+        .form-group select:focus {
+            outline: none;
+            border-color: #00b4d8;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        .btn-primary {
+            background: #00b4d8;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0077b6;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+        
+        .toggle-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 30px;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.3s;
+        }
+        .toggle-switch:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .toggle-switch.active {
+            background: #4caf50;
+        }
+        .toggle-slider {
+            width: 50px;
+            height: 26px;
+            background: #ccc;
+            border-radius: 13px;
+            position: relative;
+            transition: background 0.3s;
+        }
+        .toggle-switch.active .toggle-slider {
+            background: #fff;
+        }
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active .toggle-slider::after {
+            transform: translateX(24px);
+            background: #4caf50;
         }
         
         .gate-config {
             display: flex;
             align-items: center;
-            padding: 12px;
-            margin: 8px 0;
+            gap: 10px;
+            padding: 10px;
             background: #f9f9f9;
             border-radius: 5px;
-            gap: 10px;
+            margin: 10px 0;
+        }
+        .gate-config label {
+            font-weight: bold;
+            min-width: 70px;
         }
         .gate-config input[type="checkbox"] {
             width: 20px;
             height: 20px;
+            cursor: pointer;
         }
         .gate-config input[type="text"] {
             flex: 1;
             padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .gate-config label {
-            min-width: 80px;
-            font-weight: 600;
-        }
-        
-        button {
-            background: #2196F3;
-            color: white;
-            padding: 12px 20px;
-            border: none;
+            border: 2px solid #e0e0e0;
             border-radius: 5px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: none;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            width: 100%;
-            margin: 10px 0;
-            transition: all 0.2s;
+            font-weight: bold;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
         }
-        button:hover { 
-            background: #1976D2; 
-            transform: translateY(-2px);
+        .tab-btn.active {
+            color: #00b4d8;
+            border-bottom-color: #00b4d8;
         }
-        button.danger { background: #f44336; }
-        button.danger:hover { background: #d32f2f; }
-        
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 0 5px 5px 0;
+        .tab-btn:hover {
+            color: #00b4d8;
         }
-        .info-box h4 {
-            margin: 0 0 10px 0;
-            color: #1976d2;
+        .tab-content {
+            display: none;
         }
-        .info-box p {
-            margin: 5px 0;
-            line-height: 1.6;
-        }
-        
-        @media (max-width: 768px) {
-            .water-levels {
-                grid-template-columns: 1fr;
-            }
-            .gate-grid {
-                grid-template-columns: 1fr;
-            }
-            .info-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            body { padding: 5px; }
-            .card { padding: 10px; }
-            .level-display { font-size: 24px; }
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="status-header">
-            <h1>🌊 Water Gate Controller</h1>
+            <h1 id="systemTitle">Water Gate Controller</h1>
+            
             <div class="water-levels">
                 <div class="level-box">
                     <h3>Main Water Level</h3>
-                    <div class="level-display"><span id="mainLevel">--</span> cm</div>
+                    <div class="level-display" id="mainLevel">-- cm</div>
                     <div class="level-subtitle">Raw: <span id="mainRaw">--</span> cm</div>
                 </div>
                 <div class="level-box">
                     <h3>Secondary Water Level</h3>
-                    <div class="level-display"><span id="secondaryLevel">--</span> cm</div>
+                    <div class="level-display" id="secondaryLevel">-- cm</div>
                     <div class="level-subtitle">Raw: <span id="secondaryRaw">--</span> cm</div>
                 </div>
             </div>
+            
             <div class="status-indicators">
-                <span id="autoIndicator" class="indicator">Manual Mode</span>
-                <span id="rangeIndicator" class="indicator" style="display:none;">In Range</span>
-                <span id="actionIndicator" class="indicator" style="display:none;">--</span>
-            </div>
-        </div>
-        
-        <div class="auto-control">
-            <h2>Automatic Control</h2>
-            <div class="auto-toggle" onclick="toggleAutoMode()">
-                <span style="font-weight: bold;">AUTO MODE</span>
-                <div id="autoToggle" class="toggle-switch">
+                <div class="toggle-switch" id="autoToggle" onclick="toggleAutoMode()">
                     <div class="toggle-slider"></div>
+                    <span id="autoStatus">OFF</span>
                 </div>
-                <span id="autoStatus">OFF</span>
+                <span class="indicator" id="autoIndicator">AUTO MODE</span>
+                <span class="indicator" id="rangeIndicator" style="display: none;">In Target Range</span>
+                <span class="indicator" id="actionIndicator" style="display: none;">Should Open</span>
             </div>
         </div>
 
         <div class="card">
-            <h2 style="margin-top: 0;">System Information</h2>
+            <h2>System Information</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <label>Target Range</label>
-                    <value><span id="lowerTarget">--</span> to <span id="upperTarget">--</span> cm</value>
+                    <label>Lower Target</label>
+                    <value id="lowerTarget">-60.0 cm</value>
+                </div>
+                <div class="info-item">
+                    <label>Upper Target</label>
+                    <value id="upperTarget">-40.0 cm</value>
                 </div>
                 <div class="info-item">
                     <label>Secondary Min</label>
-                    <value><span id="secondaryMin">--</span> cm</value>
+                    <value id="secondaryMin">-80.0 cm</value>
                 </div>
                 <div class="info-item">
                     <label>Operation Delay</label>
-                    <value><span id="operationDelay">--</span> sec</value>
+                    <value id="operationDelay">60 s</value>
                 </div>
                 <div class="info-item">
                     <label>Uptime</label>
-                    <value id="uptime">--</value>
+                    <value id="uptime">0d 0h 0m 0s</value>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <h2 style="margin-top: 0;">Gate Status & Control</h2>
+            <h2>Gate Status</h2>
             <div class="gate-grid" id="gateGrid">
-                <!-- Gates will be dynamically loaded here -->
+                <div class="gate-card">
+                    <h3>Loading...</h3>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h2 style="margin-top: 0;">System Settings</h2>
-            <form id="settingsForm">
-                <div class="settings-section">
-                    <h3>Basic Configuration</h3>
-                    <div class="form-row">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('status')">Status</button>
+                <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+                <button class="tab-btn" onclick="switchTab('gates')">Gate Config</button>
+            </div>
+
+            <div id="statusTab" class="tab-content active">
+                <p>Real-time monitoring of water levels and gate status.</p>
+                <button class="btn btn-danger" id="restartBtn">Restart System</button>
+            </div>
+
+            <div id="settingsTab" class="tab-content">
+                <h2>System Settings</h2>
+                <form id="settingsForm">
+                    <div class="form-group">
                         <label>Station Name</label>
-                        <input type="text" id="stationName" name="stationName">
+                        <input type="text" id="stationName" name="stationName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Measurement Interval (ms)</label>
+                        <input type="number" id="interval" name="interval" min="5000" required>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px; color: #00b4d8;">Main Sensor</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Calibration Offset (cm)</label>
+                            <input type="number" step="0.1" id="mainCalibrationOffset" name="mainCalibrationOffset" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Sensor to Bottom Distance (cm)</label>
+                            <input type="number" step="0.1" id="mainSensorToBottomDistance" name="mainSensorToBottomDistance" required>
+                        </div>
                     </div>
                     <div class="form-row">
-                        <label>Measurement Interval (seconds)</label>
-                        <input type="number" id="interval" name="interval" min="5">
-                        <small>How often to check water levels (minimum 5 seconds)</small>
+                        <div class="form-group">
+                            <label>Upper Target (cm)</label>
+                            <input type="number" step="0.1" id="mainUpperTarget" name="mainUpperTarget" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Lower Target (cm)</label>
+                            <input type="number" step="0.1" id="mainLowerTarget" name="mainLowerTarget" required>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="settings-section">
-                    <h3>Main Sensor Configuration</h3>
+                    
+                    <h3 style="margin-top: 30px; color: #00b4d8;">Secondary Sensor</h3>
                     <div class="form-row">
-                        <label>Calibration Offset (cm)</label>
-                        <input type="number" step="0.1" id="mainCalibrationOffset" name="mainCalibrationOffset">
+                        <div class="form-group">
+                            <label>Calibration Offset (cm)</label>
+                            <input type="number" step="0.1" id="secondaryCalibrationOffset" name="secondaryCalibrationOffset" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Sensor to Bottom Distance (cm)</label>
+                            <input type="number" step="0.1" id="secondarySensorToBottomDistance" name="secondarySensorToBottomDistance" required>
+                        </div>
                     </div>
+                    <div class="form-group">
+                        <label>Minimum Water Level (cm)</label>
+                        <input type="number" step="0.1" id="secondaryMinLevel" name="secondaryMinLevel" required>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px; color: #00b4d8;">Gate Operation</h3>
                     <div class="form-row">
-                        <label>Sensor to Bottom Distance (cm)</label>
-                        <input type="number" step="0.1" id="mainSensorToBottomDistance" name="mainSensorToBottomDistance">
+                        <div class="form-group">
+                            <label>Operation Delay (seconds)</label>
+                            <input type="number" id="gateOperationDelay" name="gateOperationDelay" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Auto Mode on Startup</label>
+                            <select id="autoModeEnabled" name="autoModeEnabled">
+                                <option value="0">Disabled</option>
+                                <option value="1">Enabled</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-row">
-                        <label>Upper Target Level (cm)</label>
-                        <input type="number" step="0.1" id="mainUpperTarget" name="mainUpperTarget">
-                        <small>When main level exceeds this, gates may open to drain</small>
-                    </div>
-                    <div class="form-row">
-                        <label>Lower Target Level (cm)</label>
-                        <input type="number" step="0.1" id="mainLowerTarget" name="mainLowerTarget">
-                        <small>When main level below this, gates may open to fill</small>
-                    </div>
-                </div>
-                
-                <div class="settings-section">
-                    <h3>Secondary Sensor Configuration</h3>
-                    <div class="form-row">
-                        <label>Calibration Offset (cm)</label>
-                        <input type="number" step="0.1" id="secondaryCalibrationOffset" name="secondaryCalibrationOffset">
-                    </div>
-                    <div class="form-row">
-                        <label>Sensor to Bottom Distance (cm)</label>
-                        <input type="number" step="0.1" id="secondarySensorToBottomDistance" name="secondarySensorToBottomDistance">
-                    </div>
-                    <div class="form-row">
-                        <label>Minimum Safe Level (cm)</label>
-                        <input type="number" step="0.1" id="secondaryMinLevel" name="secondaryMinLevel">
-                        <small>Minimum level required for gate operations</small>
-                    </div>
-                </div>
-                
-                <div class="settings-section">
-                    <h3>Gate Operation Settings</h3>
-                    <div class="form-row">
-                        <label>Operation Delay (seconds)</label>
-                        <input type="number" id="gateOperationDelay" name="gateOperationDelay" min="1">
-                        <small>Minimum time between gate operations</small>
-                    </div>
-                    <div class="form-row">
-                        <label>Auto Mode</label>
-                        <select id="autoModeEnabled" name="autoModeEnabled">
-                            <option value="0">Disabled</option>
-                            <option value="1">Enabled</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <button type="submit">Save Settings</button>
-            </form>
-        </div>
-
-        <div class="card">
-            <h2 style="margin-top: 0;">Gate Configuration</h2>
-            <div class="info-box">
-                <h4>Control Logic</h4>
-                <p><strong>Gates Open:</strong> When main level is outside target range AND secondary can supply/receive water</p>
-                <p><strong>Gates Close:</strong> When main level is within target range OR secondary cannot supply/receive</p>
-                <p><strong>Manual Control:</strong> Individual gates can be controlled manually at any time</p>
+                    
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
             </div>
-            <form id="gateConfigForm">
-                <div id="gateConfigs"></div>
-                <button type="submit">Save Gate Settings</button>
-            </form>
-        </div>
 
-        <div class="card">
-            <button id="restartBtn" class="danger">Restart System</button>
+            <div id="gatesTab" class="tab-content">
+                <h2>Gate Configuration</h2>
+                <form id="gateConfigForm">
+                    <div id="gateConfigs">
+                        <!-- Gate configs will be loaded here -->
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Gate Config</button>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
         let autoModeState = false;
 
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
         function updateStatus() {
-            fetch('/currentLevel')
+            fetch('/current')
                 .then(response => response.json())
                 .then(data => {
-                    // Update water levels
-                    document.getElementById('mainLevel').textContent = data.mainWaterLevel.toFixed(2);
-                    document.getElementById('mainRaw').textContent = data.mainRawDistance.toFixed(2);
-                    document.getElementById('secondaryLevel').textContent = data.secondaryWaterLevel.toFixed(2);
-                    document.getElementById('secondaryRaw').textContent = data.secondaryRawDistance.toFixed(2);
+                    document.getElementById('mainLevel').textContent = data.mainWaterLevel.toFixed(1) + ' cm';
+                    document.getElementById('mainRaw').textContent = data.mainRawDistance.toFixed(1);
+                    document.getElementById('secondaryLevel').textContent = data.secondaryWaterLevel.toFixed(1) + ' cm';
+                    document.getElementById('secondaryRaw').textContent = data.secondaryRawDistance.toFixed(1);
                     
-                    // Update auto mode indicator
-                    autoModeState = data.autoMode && !data.manualControl;
+                    autoModeState = data.autoMode;
                     const autoIndicator = document.getElementById('autoIndicator');
                     const autoToggle = document.getElementById('autoToggle');
                     const autoStatus = document.getElementById('autoStatus');
                     
-                    if (autoModeState) {
-                        autoIndicator.textContent = 'Auto Mode Active';
+                    if (data.autoMode) {
                         autoIndicator.className = 'indicator auto-on';
-                        autoToggle.className = 'toggle-switch on';
+                        autoToggle.className = 'toggle-switch active';
                         autoStatus.textContent = 'ON';
                     } else {
-                        autoIndicator.textContent = 'Manual Mode';
                         autoIndicator.className = 'indicator';
                         autoToggle.className = 'toggle-switch';
                         autoStatus.textContent = 'OFF';
@@ -641,7 +658,7 @@
         }
 
         function loadConfig() {
-            fetch('/config')
+            fetch('/settings')
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('stationName').value = data.stationName;

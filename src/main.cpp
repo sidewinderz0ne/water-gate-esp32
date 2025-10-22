@@ -14,30 +14,25 @@
 #define SECONDARY_A01_RX 25 // GPIO25
 #define SECONDARY_A01_TX 26 // GPIO26
 
+// SHARED PWM PIN for all gates (since speed control not needed)
+#define SHARED_PWM 14  // Single PWM pin for all BTS7960 drivers
+
 // BTS7960 Motor Driver Pins for 4 Gates
 // Gate 1
-#define GATE1_RPWM 18  // Open
-#define GATE1_LPWM 19  // Close
 #define GATE1_REN 21
 #define GATE1_LEN 22
 
 // Gate 2
-#define GATE2_RPWM 23
-#define GATE2_LPWM 32
-#define GATE2_REN 33
-#define GATE2_LEN 27
+#define GATE2_REN 32
+#define GATE2_LEN 33
 
 // Gate 3
-#define GATE3_RPWM 14
-#define GATE3_LPWM 12
-#define GATE3_REN 13
-#define GATE3_LEN 15
+#define GATE3_REN 2
+#define GATE3_LEN 4
 
 // Gate 4
-#define GATE4_RPWM 2
-#define GATE4_LPWM 4
-#define GATE4_REN 5
-#define GATE4_LEN 34
+#define GATE4_REN 34
+#define GATE4_LEN 35
 
 // Constants
 #define WDT_TIMEOUT 180
@@ -62,13 +57,11 @@ struct Gate {
     bool enabled;           // Is this gate active in auto mode?
     bool isOpen;           // Current state (true=open, false=closed)
     bool isMoving;         // Is currently moving
-    int rpwmPin;
-    int lpwmPin;
-    int renPin;
-    int lenPin;
+    int renPin;            // Right enable pin
+    int lenPin;            // Left enable pin
     
     Gate() : name("Gate"), enabled(false), isOpen(false), isMoving(false),
-             rpwmPin(0), lpwmPin(0), renPin(0), lenPin(0) {}
+             renPin(0), lenPin(0) {}
 };
 
 Gate gates[NUM_GATES];
@@ -145,29 +138,21 @@ void initializeGates()
 {
     // Gate 1
     gates[0].name = "Gate 1";
-    gates[0].rpwmPin = GATE1_RPWM;
-    gates[0].lpwmPin = GATE1_LPWM;
     gates[0].renPin = GATE1_REN;
     gates[0].lenPin = GATE1_LEN;
     
     // Gate 2
     gates[1].name = "Gate 2";
-    gates[1].rpwmPin = GATE2_RPWM;
-    gates[1].lpwmPin = GATE2_LPWM;
     gates[1].renPin = GATE2_REN;
     gates[1].lenPin = GATE2_LEN;
     
     // Gate 3
     gates[2].name = "Gate 3";
-    gates[2].rpwmPin = GATE3_RPWM;
-    gates[2].lpwmPin = GATE3_LPWM;
     gates[2].renPin = GATE3_REN;
     gates[2].lenPin = GATE3_LEN;
     
     // Gate 4
     gates[3].name = "Gate 4";
-    gates[3].rpwmPin = GATE4_RPWM;
-    gates[3].lpwmPin = GATE4_LPWM;
     gates[3].renPin = GATE4_REN;
     gates[3].lenPin = GATE4_LEN;
 }
@@ -215,7 +200,7 @@ void addToSerialBuffer(const String &message)
 void setup()
 {
     Serial.begin(115200);
-    Serial.println("\nInitializing 4-Gate Water Controller...");
+    Serial.println("\nInitializing 4-Gate Water Controller (Single PWM)...");
 
     initializeGates();
 
@@ -248,174 +233,42 @@ void setup()
 
 void setupPins()
 {
-    // Initialize all gate pins
+    // Setup shared PWM pin - set to HIGH (full speed)
+    pinMode(SHARED_PWM, OUTPUT);
+    digitalWrite(SHARED_PWM, HIGH);  // Always HIGH for full speed
+    
+    Serial.println("Shared PWM pin initialized on GPIO " + String(SHARED_PWM));
+    
+    // Initialize all gate enable pins
     for (int i = 0; i < NUM_GATES; i++)
     {
-        pinMode(gates[i].rpwmPin, OUTPUT);
-        pinMode(gates[i].lpwmPin, OUTPUT);
         pinMode(gates[i].renPin, OUTPUT);
         pinMode(gates[i].lenPin, OUTPUT);
         
-        // Enable the drivers
-        digitalWrite(gates[i].renPin, HIGH);
-        digitalWrite(gates[i].lenPin, HIGH);
-        
-        // Stop all gates initially
-        digitalWrite(gates[i].rpwmPin, LOW);
-        digitalWrite(gates[i].lpwmPin, LOW);
+        // Disable both directions initially (gate stopped)
+        digitalWrite(gates[i].renPin, LOW);
+        digitalWrite(gates[i].lenPin, LOW);
         
         gates[i].isMoving = false;
     }
+    
+    Serial.println("All gate enable pins initialized");
 }
 
 void setupWebServer()
 {
     server.enableCORS(true);
 
-    server.on("/", HTTP_GET, handleRoot);
+    server.on("/", handleRoot);
+    server.on("/settings", HTTP_GET, handleGetConfig);
     server.on("/settings", HTTP_POST, handleSettings);
-    server.on("/config", HTTP_GET, handleGetConfig);
-    server.on("/currentLevel", HTTP_GET, handleCurrentLevel);
-    server.on("/gateControl", HTTP_POST, handleGateControl);
-    server.on("/restart", HTTP_POST, handleRestart);
-    server.on("/uptime", HTTP_GET, handleUptime);
+    server.on("/current", handleCurrentLevel);
+    server.on("/gate", HTTP_POST, handleGateControl);
+    server.on("/restart", handleRestart);
+    server.on("/uptime", handleUptime);
 
     server.begin();
-}
-
-void handleGateControl()
-{
-    if (!server.hasArg("gate") || !server.hasArg("action"))
-    {
-        server.send(400, "text/plain", "Missing parameters");
-        return;
-    }
-    
-    String action = server.arg("action");
-    
-    // Handle auto mode toggle
-    if (action == "auto")
-    {
-        autoMode = server.arg("state") == "1";
-        config.autoModeEnabled = autoMode;
-        saveConfig();
-        server.send(200, "text/plain", autoMode ? "Auto mode ON" : "Auto mode OFF");
-        return;
-    }
-    
-    // Handle individual gate control
-    int gateIndex = server.arg("gate").toInt();
-    if (gateIndex < 0 || gateIndex >= NUM_GATES)
-    {
-        server.send(400, "text/plain", "Invalid gate index");
-        return;
-    }
-    
-    if (action == "open")
-    {
-        openGate(gateIndex);
-        server.send(200, "text/plain", gates[gateIndex].name + " opening");
-    }
-    else if (action == "close")
-    {
-        closeGate(gateIndex);
-        server.send(200, "text/plain", gates[gateIndex].name + " closing");
-    }
-    else if (action == "stop")
-    {
-        stopGate(gateIndex);
-        server.send(200, "text/plain", gates[gateIndex].name + " stopped");
-    }
-    else
-    {
-        server.send(400, "text/plain", "Invalid action");
-    }
-}
-
-void handleCurrentLevel()
-{
-    JsonDocument doc;
-    
-    doc["mainWaterLevel"] = mainWaterLevel;
-    doc["mainRawDistance"] = mainRawDistance;
-    doc["secondaryWaterLevel"] = secondaryWaterLevel;
-    doc["secondaryRawDistance"] = secondaryRawDistance;
-    doc["autoMode"] = autoMode;
-    doc["shouldOpen"] = shouldOpenGates();
-    doc["shouldClose"] = shouldCloseGates();
-    
-    bool mainInRange = (mainWaterLevel >= config.mainLowerTarget && 
-                        mainWaterLevel <= config.mainUpperTarget);
-    doc["mainInTargetRange"] = mainInRange;
-    
-    JsonArray gatesArray = doc["gates"].to<JsonArray>();
-    for (int i = 0; i < NUM_GATES; i++)
-    {
-        JsonObject gate = gatesArray.createNestedObject();
-        gate["index"] = i;
-        gate["name"] = gates[i].name;
-        gate["enabled"] = gates[i].enabled;
-        gate["isOpen"] = gates[i].isOpen;
-        gate["isMoving"] = gates[i].isMoving;
-    }
-    
-    String jsonString;
-    serializeJson(doc, jsonString);
-    server.send(200, "application/json", jsonString);
-}
-
-void handleSettings()
-{
-    if (server.hasArg("stationName"))
-        config.stationName = server.arg("stationName");
-    
-    if (server.hasArg("interval"))
-        config.measurementInterval = max(MINIMUM_INTERVAL, 
-            (unsigned long)server.arg("interval").toInt() * 1000UL);
-    
-    if (server.hasArg("mainCalibrationOffset"))
-        config.mainCalibrationOffset = server.arg("mainCalibrationOffset").toFloat();
-    
-    if (server.hasArg("mainSensorToBottomDistance"))
-        config.mainSensorToBottomDistance = server.arg("mainSensorToBottomDistance").toFloat();
-    
-    if (server.hasArg("mainUpperTarget"))
-        config.mainUpperTarget = server.arg("mainUpperTarget").toFloat();
-    
-    if (server.hasArg("mainLowerTarget"))
-        config.mainLowerTarget = server.arg("mainLowerTarget").toFloat();
-    
-    if (server.hasArg("secondaryCalibrationOffset"))
-        config.secondaryCalibrationOffset = server.arg("secondaryCalibrationOffset").toFloat();
-    
-    if (server.hasArg("secondarySensorToBottomDistance"))
-        config.secondarySensorToBottomDistance = server.arg("secondarySensorToBottomDistance").toFloat();
-    
-    if (server.hasArg("secondaryMinLevel"))
-        config.secondaryMinLevel = server.arg("secondaryMinLevel").toFloat();
-    
-    if (server.hasArg("gateOperationDelay"))
-        config.gateOperationDelay = max(1U, (unsigned int)server.arg("gateOperationDelay").toInt());
-    
-    if (server.hasArg("autoModeEnabled"))
-        config.autoModeEnabled = server.arg("autoModeEnabled") == "1";
-    
-    // Handle gate configurations
-    for (int i = 0; i < NUM_GATES; i++)
-    {
-        String prefix = "gate" + String(i) + "_";
-        
-        if (server.hasArg(prefix + "enabled"))
-            gates[i].enabled = server.arg(prefix + "enabled") == "1";
-        
-        if (server.hasArg(prefix + "name"))
-            gates[i].name = server.arg(prefix + "name");
-    }
-
-    if (saveConfig())
-        server.send(200, "text/plain", "Settings saved");
-    else
-        server.send(500, "text/plain", "Save failed");
+    Serial.println("Web server started");
 }
 
 void handleGetConfig()
@@ -423,7 +276,7 @@ void handleGetConfig()
     JsonDocument doc;
 
     doc["stationName"] = config.stationName;
-    doc["measurementInterval"] = config.measurementInterval / 1000;
+    doc["measurementInterval"] = config.measurementInterval;
     doc["mainCalibrationOffset"] = config.mainCalibrationOffset;
     doc["mainSensorToBottomDistance"] = config.mainSensorToBottomDistance;
     doc["mainUpperTarget"] = config.mainUpperTarget;
@@ -433,7 +286,81 @@ void handleGetConfig()
     doc["secondaryMinLevel"] = config.secondaryMinLevel;
     doc["gateOperationDelay"] = config.gateOperationDelay;
     doc["autoModeEnabled"] = config.autoModeEnabled;
+    
+    JsonArray gatesArray = doc["gates"].to<JsonArray>();
+    for (int i = 0; i < NUM_GATES; i++)
+    {
+        JsonObject gate = gatesArray.createNestedObject();
+        gate["index"] = i;
+        gate["name"] = gates[i].name;
+        gate["enabled"] = gates[i].enabled;
+    }
 
+    String jsonString;
+    serializeJson(doc, jsonString);
+    server.send(200, "application/json", jsonString);
+}
+
+void handleSettings()
+{
+    if (server.hasArg("plain"))
+    {
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+        if (!error)
+        {
+            config.stationName = doc["stationName"].as<String>();
+            config.measurementInterval = doc["measurementInterval"].as<unsigned long>();
+            config.mainCalibrationOffset = doc["mainCalibrationOffset"].as<float>();
+            config.mainSensorToBottomDistance = doc["mainSensorToBottomDistance"].as<float>();
+            config.mainUpperTarget = doc["mainUpperTarget"].as<float>();
+            config.mainLowerTarget = doc["mainLowerTarget"].as<float>();
+            config.secondaryCalibrationOffset = doc["secondaryCalibrationOffset"].as<float>();
+            config.secondarySensorToBottomDistance = doc["secondarySensorToBottomDistance"].as<float>();
+            config.secondaryMinLevel = doc["secondaryMinLevel"].as<float>();
+            config.gateOperationDelay = doc["gateOperationDelay"].as<unsigned int>();
+            config.autoModeEnabled = doc["autoModeEnabled"].as<bool>();
+            
+            autoMode = config.autoModeEnabled;
+
+            JsonArray gatesArray = doc["gates"];
+            for (int i = 0; i < NUM_GATES && i < gatesArray.size(); i++)
+            {
+                JsonObject gate = gatesArray[i];
+                gates[i].enabled = gate["enabled"].as<bool>();
+                gates[i].name = gate["name"].as<String>();
+            }
+
+            validateMeasurementInterval();
+
+            if (saveConfig())
+            {
+                addToSerialBuffer("Config saved");
+                server.send(200, "text/plain", "OK");
+            }
+            else
+            {
+                server.send(500, "text/plain", "Save failed");
+            }
+        }
+        else
+        {
+            server.send(400, "text/plain", "Invalid JSON");
+        }
+    }
+}
+
+void handleCurrentLevel()
+{
+    JsonDocument doc;
+
+    doc["mainWaterLevel"] = mainWaterLevel;
+    doc["secondaryWaterLevel"] = secondaryWaterLevel;
+    doc["mainRawDistance"] = mainRawDistance;
+    doc["secondaryRawDistance"] = secondaryRawDistance;
+    doc["autoMode"] = autoMode;
+    
     JsonArray gatesArray = doc["gates"].to<JsonArray>();
     for (int i = 0; i < NUM_GATES; i++)
     {
@@ -445,95 +372,161 @@ void handleGetConfig()
         gate["isMoving"] = gates[i].isMoving;
     }
 
+    JsonArray serialArray = doc["serialBuffer"].to<JsonArray>();
+    for (int i = 0; i < SERIAL_BUFFER_SIZE; i++)
+    {
+        int idx = (serialBufferIndex + i) % SERIAL_BUFFER_SIZE;
+        if (serialBuff[idx] != "")
+            serialArray.add(serialBuff[idx]);
+    }
+
     String jsonString;
     serializeJson(doc, jsonString);
     server.send(200, "application/json", jsonString);
 }
 
+void handleGateControl()
+{
+    if (server.hasArg("plain"))
+    {
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+        if (!error)
+        {
+            int gateIndex = doc["gate"].as<int>();
+            String action = doc["action"].as<String>();
+
+            if (gateIndex >= 0 && gateIndex < NUM_GATES)
+            {
+                if (action == "open")
+                {
+                    openGate(gateIndex);
+                    server.send(200, "text/plain", "Gate opening");
+                }
+                else if (action == "close")
+                {
+                    closeGate(gateIndex);
+                    server.send(200, "text/plain", "Gate closing");
+                }
+                else if (action == "stop")
+                {
+                    stopGate(gateIndex);
+                    server.send(200, "text/plain", "Gate stopped");
+                }
+                else
+                {
+                    server.send(400, "text/plain", "Invalid action");
+                }
+            }
+            else
+            {
+                server.send(400, "text/plain", "Invalid gate");
+            }
+        }
+        else
+        {
+            server.send(400, "text/plain", "Invalid JSON");
+        }
+    }
+}
+
 void loop()
 {
+    resetWatchdog();
     server.handleClient();
 
     unsigned long currentTime = millis();
-    
-    // Periodic measurements
+
     if (currentTime - lastMeasurementTime >= config.measurementInterval)
     {
         measureWaterLevels();
-        
-        // Auto control for enabled gates
-        if (autoMode && config.autoModeEnabled)
-        {
-            controlAutoGates();
-        }
-        
         lastMeasurementTime = currentTime;
     }
 
-    resetWatchdog();
+    if (autoMode)
+    {
+        controlAutoGates();
+    }
+
+    delay(100);
 }
 
 void measureWaterLevels()
 {
-    // Read main sensor
-    float mainDistance = readA01NYUB(Serial2, MAIN_A01_RX, MAIN_A01_TX, "Main");
-    if (mainDistance >= 0)
+    Serial.println("Measuring water levels...");
+
+    HardwareSerial SerialA01_Main(1);
+    HardwareSerial SerialA01_Secondary(2);
+
+    mainRawDistance = readA01NYUB(SerialA01_Main, MAIN_A01_RX, MAIN_A01_TX, "Main");
+    if (mainRawDistance > 0)
     {
-        mainRawDistance = mainDistance;
-        mainWaterLevel = (config.mainSensorToBottomDistance - mainDistance) + 
-                         config.mainCalibrationOffset;
-        addToSerialBuffer("Main: " + String(mainWaterLevel) + "cm");
+        mainWaterLevel = config.mainSensorToBottomDistance - mainRawDistance + config.mainCalibrationOffset;
     }
-    
-    // Read secondary sensor
-    float secondaryDistance = readA01NYUB(Serial1, SECONDARY_A01_RX, SECONDARY_A01_TX, "Secondary");
-    if (secondaryDistance >= 0)
+
+    secondaryRawDistance = readA01NYUB(SerialA01_Secondary, SECONDARY_A01_RX, SECONDARY_A01_TX, "Secondary");
+    if (secondaryRawDistance > 0)
     {
-        secondaryRawDistance = secondaryDistance;
-        secondaryWaterLevel = (config.secondarySensorToBottomDistance - secondaryDistance) + 
-                              config.secondaryCalibrationOffset;
-        addToSerialBuffer("Secondary: " + String(secondaryWaterLevel) + "cm");
+        secondaryWaterLevel = config.secondarySensorToBottomDistance - secondaryRawDistance + config.secondaryCalibrationOffset;
     }
+
+    Serial.printf("Main: %.1f cm (raw: %.1f mm)\n", mainWaterLevel, mainRawDistance);
+    Serial.printf("Secondary: %.1f cm (raw: %.1f mm)\n", secondaryWaterLevel, secondaryRawDistance);
+
+    String logMsg = "Main: " + String(mainWaterLevel, 1) + "cm, Secondary: " + String(secondaryWaterLevel, 1) + "cm";
+    addToSerialBuffer(logMsg);
 }
 
 float readA01NYUB(HardwareSerial &serial, int rx, int tx, const char* sensorName)
 {
-    const int numMeasurements = 5;
-    float measurements[numMeasurements];
-    int validMeasurements = 0;
-
     serial.begin(9600, SERIAL_8N1, rx, tx);
     delay(100);
 
-    for (int i = 0; i < numMeasurements; i++)
+    const int NUM_MEASUREMENTS = 5;
+    float measurements[NUM_MEASUREMENTS];
+    int validMeasurements = 0;
+
+    for (int i = 0; i < NUM_MEASUREMENTS; i++)
     {
-        if (serial.write(0x01) == 1)
+        unsigned long startTime = millis();
+        while (serial.available() < 4 && (millis() - startTime) < 500)
         {
-            delay(100);
-            if (serial.available() >= 4)
+            delay(10);
+        }
+
+        if (serial.available() >= 4)
+        {
+            byte header = serial.read();
+            if (header == 0xFF)
             {
-                byte response[4];
-                serial.readBytes(response, 4);
-                if (response[0] == 0xFF)
+                byte highByte = serial.read();
+                byte lowByte = serial.read();
+                byte checksum = serial.read();
+
+                byte calculatedChecksum = (0xFF + highByte + lowByte) & 0xFF;
+
+                if (checksum == calculatedChecksum)
                 {
-                    int distance = (response[1] << 8) | response[2];
-                    if (distance > 0 && distance < 7500)
+                    int distance = (highByte << 8) | lowByte;
+                    if (distance >= 30 && distance <= 4500)
                     {
-                        measurements[validMeasurements++] = distance / 10.0;
+                        measurements[validMeasurements++] = distance;
                     }
                 }
             }
         }
-        delay(50);
+
+        while (serial.available())
+            serial.read();
+
+        delay(100);
     }
 
     serial.end();
 
     if (validMeasurements == 0)
-    {
-        addToSerialBuffer("Warning: No valid " + String(sensorName) + " readings");
-        return -1;
-    }
+        return -1.0;
 
     float sum = 0;
     for (int i = 0; i < validMeasurements; i++)
@@ -603,8 +596,9 @@ void openGate(int gateIndex)
 {
     if (gateIndex < 0 || gateIndex >= NUM_GATES) return;
     
-    digitalWrite(gates[gateIndex].lpwmPin, LOW);   // Stop close direction
-    digitalWrite(gates[gateIndex].rpwmPin, HIGH);  // Start open direction
+    // Disable close direction, enable open direction
+    digitalWrite(gates[gateIndex].lenPin, LOW);    // Stop close
+    digitalWrite(gates[gateIndex].renPin, HIGH);   // Enable open
     gates[gateIndex].isMoving = true;
     gates[gateIndex].isOpen = true;
     
@@ -615,8 +609,9 @@ void closeGate(int gateIndex)
 {
     if (gateIndex < 0 || gateIndex >= NUM_GATES) return;
     
-    digitalWrite(gates[gateIndex].rpwmPin, LOW);   // Stop open direction
-    digitalWrite(gates[gateIndex].lpwmPin, HIGH);  // Start close direction
+    // Disable open direction, enable close direction
+    digitalWrite(gates[gateIndex].renPin, LOW);    // Stop open
+    digitalWrite(gates[gateIndex].lenPin, HIGH);   // Enable close
     gates[gateIndex].isMoving = true;
     gates[gateIndex].isOpen = false;
     
@@ -627,8 +622,9 @@ void stopGate(int gateIndex)
 {
     if (gateIndex < 0 || gateIndex >= NUM_GATES) return;
     
-    digitalWrite(gates[gateIndex].rpwmPin, LOW);
-    digitalWrite(gates[gateIndex].lpwmPin, LOW);
+    // Disable both directions
+    digitalWrite(gates[gateIndex].renPin, LOW);
+    digitalWrite(gates[gateIndex].lenPin, LOW);
     gates[gateIndex].isMoving = false;
     
     addToSerialBuffer(gates[gateIndex].name + " STOPPED");
